@@ -1,4 +1,5 @@
 # Prerequisites
+cp.sh
 *.d
 
 # Object files

@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include <windows.h>
 
+#define local_persist static
+#define global_variable static
+
+global_variable bool Running;
 LRESULT CALLBACK MainWindowCallback(HWND Window, UINT Message, WPARAM wParam,
                                     LPARAM lParam) {
   LRESULT Result = 0;
@@ -14,7 +18,7 @@ LRESULT CALLBACK MainWindowCallback(HWND Window, UINT Message, WPARAM wParam,
   } break;
 
   case WM_CLOSE: {
-    OutputDebugString("WM_CLOSE\n");
+    Running = false;
   } break;
 
   case WM_ACTIVATEAPP: {
@@ -27,7 +31,13 @@ LRESULT CALLBACK MainWindowCallback(HWND Window, UINT Message, WPARAM wParam,
     int Y = Paint.rcPaint.top;
     int Width = Paint.rcPaint.right - Paint.rcPaint.left;
     int Height = Paint.rcPaint.bottom - Paint.rcPaint.top;
-    PatBlt(DeviceContext, X, Y, Width, Height, BLACKNESS);
+    local_persist DWORD Operation = WHITENESS;
+    PatBlt(DeviceContext, X, Y, Width, Height, Operation);
+    if (Operation == WHITENESS) {
+      Operation = BLACKNESS;
+    } else {
+      Operation = WHITENESS;
+    }
     EndPaint(Window, &Paint);
   } break;
   default: {
