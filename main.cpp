@@ -74,11 +74,6 @@ internal void Win32ResizeDIBSection(win32_window_dimensions WindowDimensions, wi
 
 internal void Win32UpdateWindow(HDC DeviceContext, win32_offscreen_buffer *Buffer, win32_window_dimensions WindowDimensions)
 {
-
-  printf("Win32UpdateWindow\n");
-  printf("WindowDimensions.Width: %d\n", WindowDimensions.Width);
-  printf("WindowDimensions.Height: %d\n", WindowDimensions.Height);
-
   StretchDIBits(DeviceContext,
                 0, 0, WindowDimensions.Width, WindowDimensions.Height,
                 0, 0, Buffer->BitmapWidth, Buffer->BitmapHeight,
@@ -92,9 +87,6 @@ win32_window_dimensions Win32GetWindowDimensions(HWND Window) {
     GetClientRect(Window, &ClientRect);
     Result.Width = ClientRect.right - ClientRect.left;
     Result.Height = ClientRect.bottom - ClientRect.top;
-  printf("Win32GetWindowDimensions\n");
-  printf("Result.Width: %d\n", Result.Width);
-  printf("Result.Height: %d\n", Result.Height);
     return Result;
 }
 
@@ -112,6 +104,37 @@ LRESULT CALLBACK MainWindowCallback(HWND Window, UINT Message, WPARAM wParam,
     Running = false;
   } break;
 
+  case WM_SYSKEYUP: {
+  } break;
+  case WM_SYSKEYDOWN: {
+  } break;
+  case WM_KEYDOWN: {
+  } break;
+  case WM_KEYUP: {
+        uint32 VKCode = wParam;
+        bool WasDown  = ((lParam & (1 << 30)) != 0);
+        bool IsDown = ((lParam & (1 << 31)) == 0);
+        if (IsDown != WasDown) {
+          if (VKCode == 'W') {}
+          else if (VKCode == 'A') {}
+          else if (VKCode == 'S') {}
+          else if (VKCode == 'D') {}
+          else if (VKCode == VK_UP) {}
+          else if (VKCode == VK_DOWN) {}
+          else if (VKCode == VK_LEFT) {}
+          else if (VKCode == VK_RIGHT) {}
+          else if (VKCode == VK_ESCAPE) {
+            printf("Escape: ");
+            if (IsDown) {
+              printf("Is down\n");
+            }
+            if (WasDown) {
+              printf("Was down\n");
+            }
+          }
+          else if (VKCode == VK_SPACE) {}
+      }
+    } break;
   case WM_CLOSE: {
     Running = false;
   } break;
@@ -176,6 +199,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
           TranslateMessage(&Message);
           DispatchMessage(&Message);
         }
+        // this is where he handle the xbox stuff (I don't care about that)
+        // for () {
+        //
+        // }
 
         RenderWeirdGradient(&OffscreenBuffer,XOffset, YOffset);
 
