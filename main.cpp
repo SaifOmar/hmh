@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <windows.h>
+#include <dsound.h>
 
 #define local_persist static
 #define global_variable static
@@ -11,6 +12,7 @@ typedef int16_t int16;
 typedef int32_t int32;
 typedef int64_t int64;
 
+typedef int32 bool32;
 typedef uint8_t uint8;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
@@ -34,6 +36,64 @@ struct win32_window_dimensions{
 
 global_variable bool Running;
 global_variable win32_offscreen_buffer OffscreenBuffer;
+
+
+#define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID lpcGuidDevice, LPDIRECTSOUND *lplpDS, LPUNKNOWN pUnkOuter)
+typedef DIRECT_SOUND_CREATE(direct_sound_create);
+
+
+internal void Win32InitDSound(HWND Window, int32 SamplesPerSecond, int32 BufferSize) {
+
+  // NOTE: Load the lib
+  HMODULE DSoundLibrary = LoadLibraryA("dsound.dll");
+  if (!DSoundLibrary) { printf("Could not load dsound.dll\n"); return; }
+
+  // NOTE: Get a direct sound object! - coapriative
+   direct_sound_create *DirectSoundCreate = (direct_sound_create *)
+      GetProcAddress(DSoundLibrary, "DirectSoundCreate");
+
+    LPDIRECTSOUND DirectSound;
+    // if (!DirectSoundCreate && SUCCEEDED(DirectSoundCreate(0, &DirectSound, 0))){ printf("Could not get DirectSoundCreate\n"); return; }
+
+    if (!DirectSoundCreate || !SUCCEEDED(DirectSoundCreate(0, &DirectSound, 0))) { printf("Could not get DirectSoundCreate\n"); return; }
+    if (!SUCCEEDED(DirectSound->SetCooperativeLevel(Window, DSSCL_PRIORITY))) { printf("Could not set cooperative level\n"); return; }
+
+    WAVEFORMATEX WaveFormat = {};
+    WaveFormat.wFormatTag = WAVE_FORMAT_PCM;
+    WaveFormat.nChannels = 2;
+    WaveFormat.nSamplesPerSec = SamplesPerSecond;
+    WaveFormat.nBlockAlign = (WaveFormat.nChannels * WaveFormat.wBitsPerSample)/ 8;
+    WaveFormat.nAvgBytesPerSec = SamplesPerSecond * WaveFormat.nBlockAlign;
+    WaveFormat.wBitsPerSample = 16;
+    WaveFormat.cbSize = 0;
+
+    // NOTE: Create a primary buffer
+    DSBUFFERDESC PrimaryBufferDescription = {};
+    PrimaryBufferDescription.dwSize = sizeof(PrimaryBufferDescription);
+    PrimaryBufferDescription.dwFlags = DSBCAPS_PRIMARYBUFFER;
+    LPDIRECTSOUNDBUFFER PrimaryBuffer;
+    if(!SUCCEEDED(DirectSound->CreateSoundBuffer(&PrimaryBufferDescription, &PrimaryBuffer, 0))) { printf("Could not create primary buffer\n"); return;}
+    
+
+    if(!SUCCEEDED(PrimaryBuffer->SetFormat(&WaveFormat))) { printf("Could not set format\n"); return; }
+
+    // NOTE: Create a secondary buffer
+    // NOTE(saif):this is the buffer that we will be playing
+    DSBUFFERDESC SecondaryBufferDescription = {};
+    SecondaryBufferDescription.dwSize = sizeof(SecondaryBufferDescription);
+    SecondaryBufferDescription.dwFlags = 0;
+    SecondaryBufferDescription.dwBufferBytes = BufferSize;
+    SecondaryBufferDescription.lpwfxFormat = &WaveFormat;
+    LPDIRECTSOUNDBUFFER SecondaryBuffer;
+    if(!SUCCEEDED(DirectSound->CreateSoundBuffer(&SecondaryBufferDescription, &SecondaryBuffer, 0))) { printf("Could not create secondary buffer\n"); return; }
+  
+    // NOTE: Start playing
+
+
+    
+
+
+}
 
 internal void RenderWeirdGradient(win32_offscreen_buffer *Buffer, int XOffset, int YOffset) {
 
@@ -104,12 +164,9 @@ LRESULT CALLBACK MainWindowCallback(HWND Window, UINT Message, WPARAM wParam,
     Running = false;
   } break;
 
-  case WM_SYSKEYUP: {
-  } break;
-  case WM_SYSKEYDOWN: {
-  } break;
-  case WM_KEYDOWN: {
-  } break;
+  case WM_SYSKEYUP:
+  case WM_SYSKEYDOWN:
+  case WM_KEYDOWN:
   case WM_KEYUP: {
         uint32 VKCode = wParam;
         bool WasDown  = ((lParam & (1 << 30)) != 0);
@@ -133,6 +190,13 @@ LRESULT CALLBACK MainWindowCallback(HWND Window, UINT Message, WPARAM wParam,
             }
           }
           else if (VKCode == VK_SPACE) {}
+      } 
+      bool32 AltKeyWasDown = (lParam & (1 << 29));
+      printf("lparam: %d\n", lParam);
+      printf("AltKeyWasDown: %d\n", AltKeyWasDown);
+      if ((VKCode == VK_F4) && AltKeyWasDown) {
+        printf("F4 was pressed\n");
+        Running = false;
       }
     } break;
   case WM_CLOSE: {
@@ -182,11 +246,14 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
                                  CW_USEDEFAULT, 0, 0, hInstance, 0);
 
     if (Window) {
-
       int XOffset = 0;
       int YOffset = 0;
-      Running = true;
 
+      HDC DeviceContext = GetDC(Window);
+
+      Win32InitDSound(Window, 48000, 48000*sizeof(int16)*2);
+
+      Running = true;
       while (Running) {
 
         MSG Message;
@@ -206,7 +273,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
         RenderWeirdGradient(&OffscreenBuffer,XOffset, YOffset);
 
-        HDC DeviceContext = GetDC(Window);
 
         win32_window_dimensions WindowDimensions = Win32GetWindowDimensions(Window);
         Win32UpdateWindow(DeviceContext,&OffscreenBuffer, WindowDimensions);
