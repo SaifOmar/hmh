@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <windows.h>
 #include <dsound.h>
+#include <stdio.h>
 #include <math.h>
 
 #define local_persist static
@@ -289,7 +290,15 @@ internal void Win32FillSoundBuffer(win32_sound_output *SoundOutput,DWORD ByteToL
 
 int CALLBACK
 WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
-                     LPSTR lpCmdLine, int nCmdShow) {
+                     LPSTR lpCmdLine, int nCmdShow)
+{
+
+        LARGE_INTEGER PerfCountFrequencyResult;
+        QueryPerformanceFrequency(&PerfCountFrequencyResult);
+        int64 PerfCountFrequency = PerfCountFrequencyResult.QuadPart;
+
+        int64 LastCycleCount = __rdtsc();
+
 
         WNDCLASSA WindowClass = {};
 
@@ -323,13 +332,17 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
           SecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
     
+          LARGE_INTEGER LastCounter;
+          QueryPerformanceCounter(&LastCounter);
 
           Running = true;
           while (Running) {
 
             MSG Message;
-            while (PeekMessage(&Message, 0, 0, 0, PM_REMOVE)) {
-              if (Message.message == WM_QUIT) {
+            while (PeekMessage(&Message, 0, 0, 0, PM_REMOVE))
+            {
+              if (Message.message == WM_QUIT)
+              {
                 Running = false;
                 break;
               }
@@ -378,6 +391,26 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
             XOffset++;
             YOffset++;
+
+            int64 EndCycleCount = __rdtsc();
+
+            LARGE_INTEGER EndCounter;
+            QueryPerformanceCounter(&EndCounter);
+
+            // TODO  :  Display the value here
+            int64 CyclesCount = EndCycleCount - LastCycleCount;
+            int64 CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
+            real32 MsPerFrame = (real32)(((1000.0f*(real32)CounterElapsed)/ (real32)PerfCountFrequency));
+            real32 Fps = (real32)PerfCountFrequency/(real32)CounterElapsed;
+            real32 MCPF = ((real32)CyclesCount/(1000.0f*1000.0f));
+
+        
+            char Buffer[256];
+            sprintf(Buffer, "MsPerFrame: %0.2fms - Fps: %0.2f - MegaCyclesCount: %0.2f\n", MsPerFrame, Fps, MCPF);
+            printf("%s\n", Buffer);
+
+            LastCounter = EndCounter;
+            LastCycleCount = EndCycleCount;
           }
         }
       }
